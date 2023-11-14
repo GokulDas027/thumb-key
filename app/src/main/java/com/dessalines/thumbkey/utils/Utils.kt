@@ -6,6 +6,8 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.util.Log
 import android.view.KeyEvent
@@ -38,7 +40,10 @@ import com.dessalines.thumbkey.db.DEFAULT_KEYBOARD_LAYOUT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 
@@ -46,6 +51,155 @@ const val TAG = "com.thumbkey"
 
 const val THUMBKEY_IME_NAME = "com.dessalines.thumbkey/.IMEService"
 const val IME_ACTION_CUSTOM_LABEL = EditorInfo.IME_MASK_ACTION + 1
+
+fun accelCurve(
+    offset: Float,
+    threshold: Float,
+    exp: Float,
+): Float {
+    var x = abs(offset)
+    val belowThreshold = min(offset, threshold)
+    x = max(0.0f, x - belowThreshold)
+    return x.pow(exp) + belowThreshold
+}
+
+fun acceleratingCursorDistanceThreshold(
+    offsetX: Float,
+    timeOfLastAccelerationInput: Long,
+    acceleration: Int,
+): Int {
+    // val exp = 1.0f // Slow and we can cover  1 1/2 full lines, so perfect for most.
+    // val exp = 1.5f // Slow and we can cover 2 full lines, so perfect for most.
+    // val exp = 2.0f // 2.0 should be the default
+    // val exp = 3.0f // 3.0 should be the upper limit for this
+    // Convert user's chosen acceleration of 1-50 to the amount we need.
+    val exp = 1.0f + ((acceleration * 4) / 100f) // Will give us a range from 1-3
+    val threshold = 2.0f // The threshold before acceleration kicks in.
+
+    val timeDifference = System.currentTimeMillis() - timeOfLastAccelerationInput
+    // Prevent division by 0 error.
+    var distance =
+        if (timeDifference == 0L) {
+            0f
+        } else {
+            abs(offsetX) / timeDifference
+        }
+
+    distance = accelCurve(distance, threshold, exp)
+    if (offsetX < 0) {
+        // Set the value back to negative.
+        // A distance of -1 will move the cursor left by 1 character
+        distance *= -1
+    }
+    // distance = offsetX / 10
+    return distance.toInt()
+}
+
+fun slideCursorDistance(
+    offsetX: Float,
+    timeOfLastAccelerationInput: Long,
+    accelerationMode: Int,
+    acceleration: Int,
+): Int {
+    when (accelerationMode) {
+        CursorAccelerationMode.CONSTANT.ordinal -> {
+            // Do the same speed every time
+            val settings_slider_max_value = 50
+
+            return if (abs(offsetX) > (settings_slider_max_value - acceleration)) {
+                if (offsetX > 0) {
+                    1
+                } else {
+                    -1
+                }
+            } else {
+                0
+            }
+        }
+
+        CursorAccelerationMode.QUADRATIC.ordinal -> return acceleratingCursorDistanceQuadratic(
+            offsetX,
+            timeOfLastAccelerationInput,
+            acceleration,
+        )
+
+        CursorAccelerationMode.LINEAR.ordinal -> return acceleratingCursorDistanceLinear(
+            offsetX,
+            timeOfLastAccelerationInput,
+            acceleration,
+        )
+
+        CursorAccelerationMode.THRESHOLD.ordinal -> return acceleratingCursorDistanceThreshold(
+            offsetX,
+            timeOfLastAccelerationInput,
+            acceleration,
+        )
+
+        else -> {
+            // Default to this if there is no match.
+            return acceleratingCursorDistanceLinear(
+                offsetX,
+                timeOfLastAccelerationInput,
+                acceleration,
+            )
+        }
+    }
+}
+
+fun acceleratingCursorDistanceLinear(
+    offsetX: Float,
+    timeOfLastAccelerationInput: Long,
+    acceleration: Int,
+): Int {
+    val accelerationCurve = ((acceleration * 6) / 100f) // Will give us a range from 0-3
+    val timeDifference = System.currentTimeMillis() - timeOfLastAccelerationInput
+    // Prevent division by 0 error.
+    var distance =
+        if (timeDifference == 0L) {
+            0f
+        } else {
+            abs(offsetX) / timeDifference
+        }
+
+    distance = accelerationCurve * distance
+    if (offsetX < 0) {
+        // Set the value back to negative.
+        // A distance of -1 will move the cursor left by 1 character
+        distance *= -1
+    }
+
+    return distance.toInt()
+}
+
+fun acceleratingCursorDistanceQuadratic(
+    offsetX: Float,
+    timeOfLastAccelerationInput: Long,
+    acceleration: Int,
+): Int {
+    val accelerationCurve = 0.1f + ((acceleration * 6) / 1000f) // Will give us a range from 0.1-0.4
+    val timeDifference = System.currentTimeMillis() - timeOfLastAccelerationInput
+    // Prevent division by 0 error.
+    var distance =
+        if (timeDifference == 0L) {
+            0f
+        } else {
+            abs(offsetX) / timeDifference
+        }
+
+    // Quadratic equation to make the swipe acceleration work along a curve.
+    // val accelerationCurve = 0.3f // Fast and almost perfect.
+    // var accelerationCurve = 0.2f // Fast and almost perfect.
+    // var accelerationCurve = 0.1f // Slowish and moves almost a full line at a time.
+    // var accelerationCurve = 0.01f // is slow, only 1 char at a time.
+    distance = accelerationCurve * distance.pow(2)
+    if (offsetX < 0) {
+        // Set the value back to negative.
+        // A distance of -1 will move the cursor left by 1 character
+        distance *= -1
+    }
+
+    return distance.toInt()
+}
 
 @Composable
 fun colorVariantToColor(colorVariant: ColorVariant): Color {
@@ -58,12 +212,16 @@ fun colorVariantToColor(colorVariant: ColorVariant): Color {
     }
 }
 
-fun fontSizeVariantToFontSize(fontSizeVariant: FontSizeVariant, keySize: Dp): TextUnit {
-    val divFactor = when (fontSizeVariant) {
-        FontSizeVariant.LARGE -> 2.5f
-        FontSizeVariant.SMALL -> 5f
-        FontSizeVariant.SMALLEST -> 8f
-    }
+fun fontSizeVariantToFontSize(
+    fontSizeVariant: FontSizeVariant,
+    keySize: Dp,
+): TextUnit {
+    val divFactor =
+        when (fontSizeVariant) {
+            FontSizeVariant.LARGE -> 2.5f
+            FontSizeVariant.SMALL -> 5f
+            FontSizeVariant.SMALLEST -> 8f
+        }
     return TextUnit(keySize.value / divFactor, TextUnitType.Sp)
 }
 
@@ -91,11 +249,12 @@ fun swipeDirection(
 
     if (swipeLength > minSwipeLength) {
         val angleDir = (atan2(xD, yD) / Math.PI * 180)
-        val angle = if (angleDir < 0) {
-            360 + angleDir
-        } else {
-            angleDir
-        }
+        val angle =
+            if (angleDir < 0) {
+                360 + angleDir
+            } else {
+                angleDir
+            }
 
         when (swipeType) {
             // 0 degrees = down, increasing counter-clockwise
@@ -178,9 +337,14 @@ fun performKeyAction(
             ime.currentInputConnection.sendKeyEvent(ev)
         }
 
-        is KeyAction.DeleteLastWord -> {
+        is KeyAction.DeleteWordBeforeCursor -> {
             Log.d(TAG, "deleting last word")
-            deleteLastWord(ime)
+            deleteWordBeforeCursor(ime)
+        }
+
+        is KeyAction.DeleteWordAfterCursor -> {
+            Log.d(TAG, "deleting next word")
+            deleteWordAfterCursor(ime)
         }
 
         is KeyAction.ReplaceLastText -> {
@@ -206,184 +370,193 @@ fun performKeyAction(
             val text = action.text
             val textBefore = ime.currentInputConnection.getTextBeforeCursor(1, 0)
 
-            val textNew = when (text) {
-                "\"" -> when (textBefore) {
-                    "a" -> "ä"
-                    "A" -> "Ä"
-                    "e" -> "ë"
-                    "E" -> "Ë"
-                    "h" -> "ḧ"
-                    "H" -> "Ḧ"
-                    "i" -> "ï"
-                    "I" -> "Ï"
-                    "o" -> "ö"
-                    "O" -> "Ö"
-                    "t" -> "ẗ"
-                    "u" -> "ü"
-                    "U" -> "Ü"
-                    "w" -> "ẅ"
-                    "W" -> "Ẅ"
-                    "x" -> "ẍ"
-                    "X" -> "Ẍ"
-                    "y" -> "ÿ"
-                    "Y" -> "Ÿ"
-                    " " -> "\""
-                    else -> textBefore
+            val textNew =
+                when (text) {
+                    "\"" ->
+                        when (textBefore) {
+                            "a" -> "ä"
+                            "A" -> "Ä"
+                            "e" -> "ë"
+                            "E" -> "Ë"
+                            "h" -> "ḧ"
+                            "H" -> "Ḧ"
+                            "i" -> "ï"
+                            "I" -> "Ï"
+                            "o" -> "ö"
+                            "O" -> "Ö"
+                            "t" -> "ẗ"
+                            "u" -> "ü"
+                            "U" -> "Ü"
+                            "w" -> "ẅ"
+                            "W" -> "Ẅ"
+                            "x" -> "ẍ"
+                            "X" -> "Ẍ"
+                            "y" -> "ÿ"
+                            "Y" -> "Ÿ"
+                            " " -> "\""
+                            else -> textBefore
+                        }
+                    "'" ->
+                        when (textBefore) {
+                            "a" -> "á"
+                            "A" -> "Á"
+                            "c" -> "ć"
+                            "C" -> "Ć"
+                            "e" -> "é"
+                            "E" -> "É"
+                            "g" -> "ǵ"
+                            "G" -> "Ǵ"
+                            "i" -> "í"
+                            "I" -> "Í"
+                            "j" -> "j́"
+                            "J" -> "J́"
+                            "k" -> "ḱ"
+                            "K" -> "Ḱ"
+                            "l" -> "ĺ"
+                            "L" -> "Ĺ"
+                            "m" -> "ḿ"
+                            "M" -> "Ḿ"
+                            "n" -> "ń"
+                            "N" -> "Ń"
+                            "o" -> "ó"
+                            "O" -> "Ó"
+                            "p" -> "ṕ"
+                            "P" -> "Ṕ"
+                            "r" -> "ŕ"
+                            "R" -> "Ŕ"
+                            "s" -> "ś"
+                            "S" -> "Ś"
+                            "u" -> "ú"
+                            "U" -> "Ú"
+                            "w" -> "ẃ"
+                            "W" -> "Ẃ"
+                            "y" -> "ý"
+                            "Y" -> "Ý"
+                            "z" -> "ź"
+                            "Z" -> "Ź"
+                            " " -> "'"
+                            else -> textBefore
+                        }
+                    "`" ->
+                        when (textBefore) {
+                            "a" -> "à"
+                            "A" -> "À"
+                            "e" -> "è"
+                            "E" -> "È"
+                            "i" -> "ì"
+                            "I" -> "Ì"
+                            "n" -> "ǹ"
+                            "N" -> "Ǹ"
+                            "o" -> "ò"
+                            "O" -> "Ò"
+                            "u" -> "ù"
+                            "U" -> "Ù"
+                            "ü" -> "ǜ"
+                            "Ü" -> "Ǜ"
+                            "w" -> "ẁ"
+                            "W" -> "Ẁ"
+                            "y" -> "ỳ"
+                            "Y" -> "Ỳ"
+                            " " -> "`"
+                            else -> textBefore
+                        }
+                    "^" ->
+                        when (textBefore) {
+                            "a" -> "â"
+                            "A" -> "Â"
+                            "c" -> "ĉ"
+                            "C" -> "Ĉ"
+                            "e" -> "ê"
+                            "E" -> "Ê"
+                            "g" -> "ĝ"
+                            "G" -> "Ĝ"
+                            "h" -> "ĥ"
+                            "H" -> "Ĥ"
+                            "i" -> "î"
+                            "I" -> "Î"
+                            "j" -> "ĵ"
+                            "J" -> "Ĵ"
+                            "o" -> "ô"
+                            "O" -> "Ô"
+                            "s" -> "ŝ"
+                            "S" -> "Ŝ"
+                            "u" -> "û"
+                            "U" -> "Û"
+                            "w" -> "ŵ"
+                            "W" -> "Ŵ"
+                            "y" -> "ŷ"
+                            "Y" -> "Ŷ"
+                            "z" -> "ẑ"
+                            "Z" -> "Ẑ"
+                            " " -> "^"
+                            else -> textBefore
+                        }
+                    "~" ->
+                        when (textBefore) {
+                            "a" -> "ã"
+                            "A" -> "Ã"
+                            "c" -> "ç"
+                            "C" -> "Ç"
+                            "e" -> "ẽ"
+                            "E" -> "Ẽ"
+                            "i" -> "ĩ"
+                            "I" -> "Ĩ"
+                            "n" -> "ñ"
+                            "N" -> "Ñ"
+                            "o" -> "õ"
+                            "O" -> "Õ"
+                            "u" -> "ũ"
+                            "U" -> "Ũ"
+                            "v" -> "ṽ"
+                            "V" -> "Ṽ"
+                            "y" -> "ỹ"
+                            "Y" -> "Ỹ"
+                            " " -> "~"
+                            else -> textBefore
+                        }
+                    "°" ->
+                        when (textBefore) {
+                            "a" -> "å"
+                            "A" -> "Å"
+                            "o" -> "ø"
+                            "O" -> "Ø"
+                            "u" -> "ů"
+                            "U" -> "Ů"
+                            " " -> "°"
+                            else -> textBefore
+                        }
+                    "!" ->
+                        when (textBefore) {
+                            "a" -> "æ"
+                            "A" -> "Æ"
+                            "c" -> "ç"
+                            "C" -> "Ç"
+                            "e" -> "æ"
+                            "E" -> "Æ"
+                            "s" -> "ß"
+                            "S" -> "ẞ"
+                            "!" -> "¡"
+                            "?" -> "¿"
+                            " " -> "!"
+                            else -> textBefore
+                        }
+                    "\$" ->
+                        when (textBefore) {
+                            "e" -> "€"
+                            "E" -> "€"
+                            "f" -> "₣"
+                            "F" -> "₣"
+                            "l" -> "£"
+                            "L" -> "£"
+                            "y" -> "¥"
+                            "Y" -> "¥"
+                            "w" -> "₩"
+                            "W" -> "₩"
+                            " " -> "\$"
+                            else -> textBefore
+                        }
+                    else -> throw IllegalStateException("Invalid key modifier")
                 }
-                "'" -> when (textBefore) {
-                    "a" -> "á"
-                    "A" -> "Á"
-                    "c" -> "ć"
-                    "C" -> "Ć"
-                    "e" -> "é"
-                    "E" -> "É"
-                    "g" -> "ǵ"
-                    "G" -> "Ǵ"
-                    "i" -> "í"
-                    "I" -> "Í"
-                    "j" -> "j́"
-                    "J" -> "J́"
-                    "k" -> "ḱ"
-                    "K" -> "Ḱ"
-                    "l" -> "ĺ"
-                    "L" -> "Ĺ"
-                    "m" -> "ḿ"
-                    "M" -> "Ḿ"
-                    "n" -> "ń"
-                    "N" -> "Ń"
-                    "o" -> "ó"
-                    "O" -> "Ó"
-                    "p" -> "ṕ"
-                    "P" -> "Ṕ"
-                    "r" -> "ŕ"
-                    "R" -> "Ŕ"
-                    "s" -> "ś"
-                    "S" -> "Ś"
-                    "u" -> "ú"
-                    "U" -> "Ú"
-                    "w" -> "ẃ"
-                    "W" -> "Ẃ"
-                    "y" -> "ý"
-                    "Y" -> "Ý"
-                    "z" -> "ź"
-                    "Z" -> "Ź"
-                    " " -> "'"
-                    else -> textBefore
-                }
-                "`" -> when (textBefore) {
-                    "a" -> "à"
-                    "A" -> "À"
-                    "e" -> "è"
-                    "E" -> "È"
-                    "i" -> "ì"
-                    "I" -> "Ì"
-                    "n" -> "ǹ"
-                    "N" -> "Ǹ"
-                    "o" -> "ò"
-                    "O" -> "Ò"
-                    "u" -> "ù"
-                    "U" -> "Ù"
-                    "ü" -> "ǜ"
-                    "Ü" -> "Ǜ"
-                    "w" -> "ẁ"
-                    "W" -> "Ẁ"
-                    "y" -> "ỳ"
-                    "Y" -> "Ỳ"
-                    " " -> "`"
-                    else -> textBefore
-                }
-                "^" -> when (textBefore) {
-                    "a" -> "â"
-                    "A" -> "Â"
-                    "c" -> "ĉ"
-                    "C" -> "Ĉ"
-                    "e" -> "ê"
-                    "E" -> "Ê"
-                    "g" -> "ĝ"
-                    "G" -> "Ĝ"
-                    "h" -> "ĥ"
-                    "H" -> "Ĥ"
-                    "i" -> "î"
-                    "I" -> "Î"
-                    "j" -> "ĵ"
-                    "J" -> "Ĵ"
-                    "o" -> "ô"
-                    "O" -> "Ô"
-                    "s" -> "ŝ"
-                    "S" -> "Ŝ"
-                    "u" -> "û"
-                    "U" -> "Û"
-                    "w" -> "ŵ"
-                    "W" -> "Ŵ"
-                    "y" -> "ŷ"
-                    "Y" -> "Ŷ"
-                    "z" -> "ẑ"
-                    "Z" -> "Ẑ"
-                    " " -> "^"
-                    else -> textBefore
-                }
-                "~" -> when (textBefore) {
-                    "a" -> "ã"
-                    "A" -> "Ã"
-                    "c" -> "ç"
-                    "C" -> "Ç"
-                    "e" -> "ẽ"
-                    "E" -> "Ẽ"
-                    "i" -> "ĩ"
-                    "I" -> "Ĩ"
-                    "n" -> "ñ"
-                    "N" -> "Ñ"
-                    "o" -> "õ"
-                    "O" -> "Õ"
-                    "u" -> "ũ"
-                    "U" -> "Ũ"
-                    "v" -> "ṽ"
-                    "V" -> "Ṽ"
-                    "y" -> "ỹ"
-                    "Y" -> "Ỹ"
-                    " " -> "~"
-                    else -> textBefore
-                }
-                "°" -> when (textBefore) {
-                    "a" -> "å"
-                    "A" -> "Å"
-                    "o" -> "ø"
-                    "O" -> "Ø"
-                    "u" -> "ů"
-                    "U" -> "Ů"
-                    " " -> "°"
-                    else -> textBefore
-                }
-                "!" -> when (textBefore) {
-                    "a" -> "æ"
-                    "A" -> "Æ"
-                    "c" -> "ç"
-                    "C" -> "Ç"
-                    "e" -> "æ"
-                    "E" -> "Æ"
-                    "s" -> "ß"
-                    "S" -> "ẞ"
-                    "!" -> "¡"
-                    "?" -> "¿"
-                    " " -> "!"
-                    else -> textBefore
-                }
-                "\$" -> when (textBefore) {
-                    "e" -> "€"
-                    "E" -> "€"
-                    "f" -> "₣"
-                    "F" -> "₣"
-                    "l" -> "£"
-                    "L" -> "£"
-                    "y" -> "¥"
-                    "Y" -> "¥"
-                    "w" -> "₩"
-                    "W" -> "₩"
-                    " " -> "\$"
-                    else -> textBefore
-                }
-                else -> throw IllegalStateException("Invalid key modifier")
-            }
 
             if (textNew != textBefore) {
                 ime.currentInputConnection.deleteSurroundingText(1, 0)
@@ -443,10 +616,30 @@ fun performKeyAction(
             ime.currentInputConnection.performContextMenuAction(android.R.id.selectAll)
         }
         KeyAction.Cut -> {
-            ime.currentInputConnection.performContextMenuAction(android.R.id.cut)
+            if (ime.currentInputConnection.getSelectedText(0).isNullOrEmpty()) {
+                // Nothing selected, so cut all the text
+                ime.currentInputConnection.performContextMenuAction(android.R.id.selectAll)
+                // Wait a bit for the select all to complete.
+                val delayInMillis = 100L
+                Handler(Looper.getMainLooper()).postDelayed({
+                    ime.currentInputConnection.performContextMenuAction(android.R.id.cut)
+                }, delayInMillis)
+            } else {
+                ime.currentInputConnection.performContextMenuAction(android.R.id.cut)
+            }
         }
         KeyAction.Copy -> {
-            ime.currentInputConnection.performContextMenuAction(android.R.id.copy)
+            if (ime.currentInputConnection.getSelectedText(0).isNullOrEmpty()) {
+                // Nothing selected, so copy all the text
+                ime.currentInputConnection.performContextMenuAction(android.R.id.selectAll)
+                // Wait a bit for the select all to complete.
+                val delayInMillis = 100L
+                Handler(Looper.getMainLooper()).postDelayed({
+                    ime.currentInputConnection.performContextMenuAction(android.R.id.copy)
+                }, delayInMillis)
+            } else {
+                ime.currentInputConnection.performContextMenuAction(android.R.id.copy)
+            }
 
             val message = ime.getString(R.string.copy)
             Toast.makeText(ime, message, Toast.LENGTH_SHORT).show()
@@ -512,7 +705,10 @@ fun getImeActionCode(ime: IMEService): Int {
 /**
  * Returns the correct keyboard mode
  */
-fun getKeyboardMode(ime: IMEService, autoCapitalize: Boolean): KeyboardMode {
+fun getKeyboardMode(
+    ime: IMEService,
+    autoCapitalize: Boolean,
+): KeyboardMode {
     val inputType = ime.currentInputEditorInfo.inputType and (InputType.TYPE_MASK_CLASS)
 
     return if (listOf(
@@ -547,9 +743,7 @@ private fun autoCapitalize(
     }
 }
 
-fun autoCapitalizeCheck(
-    ime: IMEService,
-): Boolean {
+fun autoCapitalizeCheck(ime: IMEService): Boolean {
     // Knows if its an empty field
     val empty = ime.currentInputConnection.getTextBeforeCursor(1, 0).isNullOrEmpty()
 
@@ -558,20 +752,29 @@ fun autoCapitalizeCheck(
     return (listOf(". ", "? ", "! ").contains(textBefore)) || empty
 }
 
-fun deleteLastWord(ime: IMEService) {
-    val lastWords = ime.currentInputConnection.getTextBeforeCursor(9999, 0)
+fun deleteWordBeforeCursor(ime: IMEService) {
+    val wordsBeforeCursor = ime.currentInputConnection.getTextBeforeCursor(9999, 0)
 
-    val trailingSpacesLength = lastWords?.length?.minus(lastWords.trimEnd().length) ?: 0
-    val trimmed = lastWords?.trim()
+    val trailingSpacesLength = wordsBeforeCursor?.length?.minus(wordsBeforeCursor.trimEnd().length) ?: 0
+    val trimmed = wordsBeforeCursor?.trim()
     val lastWordLength = trimmed?.split("\\s".toRegex())?.lastOrNull()?.length ?: 1
     val minDelete = lastWordLength + trailingSpacesLength
 
     ime.currentInputConnection.deleteSurroundingText(minDelete, 0)
 }
 
-fun buildTapActions(
-    keyItem: KeyItemC,
-): List<KeyAction> {
+fun deleteWordAfterCursor(ime: IMEService) {
+    val wordsAfterCursor = ime.currentInputConnection.getTextAfterCursor(9999, 0)
+
+    val trailingSpacesLength = wordsAfterCursor?.length?.minus(wordsAfterCursor.trimStart().length) ?: 0
+    val trimmed = wordsAfterCursor?.trim()
+    val nextWordLength = trimmed?.split("\\s".toRegex())?.firstOrNull()?.length ?: 1
+    val minDelete = nextWordLength + trailingSpacesLength
+
+    ime.currentInputConnection.deleteSurroundingText(0, minDelete)
+}
+
+fun buildTapActions(keyItem: KeyItemC): List<KeyAction> {
     val mutable = mutableListOf(keyItem.center.action)
     mutable.addAll(keyItem.nextTapActions.orEmpty())
     return mutable.toList()
@@ -589,15 +792,16 @@ fun doneKeyAction(
         delay(animationHelperSpeed.toLong())
         releasedKey.value = null
     }
-    releasedKey.value = when (action) {
-        is KeyAction.CommitText -> {
-            action.text
-        }
+    releasedKey.value =
+        when (action) {
+            is KeyAction.CommitText -> {
+                action.text
+            }
 
-        else -> {
-            null
+            else -> {
+                null
+            }
         }
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -628,12 +832,16 @@ fun SimpleTopAppBar(
     )
 }
 
-fun openLink(url: String, ctx: Context) {
+fun openLink(
+    url: String,
+    ctx: Context,
+) {
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
     ctx.startActivity(intent)
 }
 
 fun Int.toBool() = this == 1
+
 fun Boolean.toInt() = this.compareTo(false)
 
 fun keyboardLayoutsSetFromString(layouts: String?): Set<Int> {
@@ -667,12 +875,13 @@ fun Context.getPackageInfo(): PackageInfo {
     }
 }
 
-fun Context.getVersionCode(): Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-    getPackageInfo().longVersionCode.toInt()
-} else {
-    @Suppress("DEPRECATION")
-    getPackageInfo().versionCode
-}
+fun Context.getVersionCode(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        getPackageInfo().longVersionCode.toInt()
+    } else {
+        @Suppress("DEPRECATION")
+        getPackageInfo().versionCode
+    }
 
 fun startSelection(ime: IMEService): Selection {
     val cursorPosition =

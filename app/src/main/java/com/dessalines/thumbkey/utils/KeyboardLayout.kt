@@ -11,19 +11,22 @@ import com.dessalines.thumbkey.keyboards.KB_DE_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_DE_THUMBKEY_MULTILINGUAL
 import com.dessalines.thumbkey.keyboards.KB_DE_TYPESPLIT
 import com.dessalines.thumbkey.keyboards.KB_ENEO_MESSAGEEASE_SYMBOLS
+import com.dessalines.thumbkey.keyboards.KB_EN_CZ_THUMBKEY
+import com.dessalines.thumbkey.keyboards.KB_EN_EE_THUMBKEY
+import com.dessalines.thumbkey.keyboards.KB_EN_IT_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_EN_MESSAGEEASE
 import com.dessalines.thumbkey.keyboards.KB_EN_MESSAGEEASE_SYMBOLS
+import com.dessalines.thumbkey.keyboards.KB_EN_NO_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_EN_NO_TYPESPLIT
+import com.dessalines.thumbkey.keyboards.KB_EN_SK_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_COMPOSE
-import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_MULTI
-import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_MULTI_CZ
-import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_MULTI_EE
-import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_MULTI_IT
 import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_PROGRAMMER
 import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_PROGRAMMER_WIDE
 import com.dessalines.thumbkey.keyboards.KB_EN_THUMBKEY_SYMBOLS
 import com.dessalines.thumbkey.keyboards.KB_EN_TWO_HANDS
+import com.dessalines.thumbkey.keyboards.KB_EN_TWO_HANDS_SYMBOLS
+import com.dessalines.thumbkey.keyboards.KB_EN_TWO_HANDS_SYMBOLS_NUMBERS
 import com.dessalines.thumbkey.keyboards.KB_EN_TYPESPLIT
 import com.dessalines.thumbkey.keyboards.KB_EOENDE_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_ES_CA_THUMBKEY
@@ -31,6 +34,7 @@ import com.dessalines.thumbkey.keyboards.KB_ES_EO_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_ES_MESSAGEEASE
 import com.dessalines.thumbkey.keyboards.KB_ES_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_ES_TYPESPLIT
+import com.dessalines.thumbkey.keyboards.KB_EU_ES_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_EU_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_FA_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_FI_THUMBKEY
@@ -55,6 +59,8 @@ import com.dessalines.thumbkey.keyboards.KB_IT_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_IT_TYPESPLIT
 import com.dessalines.thumbkey.keyboards.KB_JA_THUMBKEY_HIRAGANA
 import com.dessalines.thumbkey.keyboards.KB_JA_THUMBKEY_KATAKANA
+import com.dessalines.thumbkey.keyboards.KB_JA_TYPESPLIT_HIRAGANA
+import com.dessalines.thumbkey.keyboards.KB_JA_TYPESPLIT_KATAKANA
 import com.dessalines.thumbkey.keyboards.KB_KA_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_LT_THUMBKEY
 import com.dessalines.thumbkey.keyboards.KB_LV_LTG_THUMBKEY
@@ -127,11 +133,11 @@ enum class KeyboardLayout(val index: Int, val keyboardDefinition: KeyboardDefini
     HUThumbKey(45, KB_HU_THUMBKEY),
     ESEOThumbKey(46, KB_ES_EO_THUMBKEY),
     ITMessageEase(47, KB_IT_MESSAGEEASE),
-    ENThumbKeyMulti(48, KB_EN_THUMBKEY_MULTI),
+    ENSKThumbKey(48, KB_EN_SK_THUMBKEY),
     HEThumbKey(49, KB_HE_THUMBKEY),
     EOENDEThumbKey(50, KB_EOENDE_THUMBKEY),
     GRThumbKey(51, KB_GR_THUMBKEY),
-    ENThumbKeyMultiCZ(52, KB_EN_THUMBKEY_MULTI_CZ),
+    ENCZThumbKey(52, KB_EN_CZ_THUMBKEY),
     ESMessageEase(53, KB_ES_MESSAGEEASE),
     RUMessageEase(54, KB_RU_MESSAGEEASE),
     BGThumbKeySymbols(55, KB_BG_THUMBKEY_SYMBOLS),
@@ -144,14 +150,20 @@ enum class KeyboardLayout(val index: Int, val keyboardDefinition: KeyboardDefini
     IDThumbKeySymbolsV2(62, KB_ID_THUMBKEY_SYMBOLS_V2),
     IDThumbKeySymbolsNumeric(63, KB_ID_THUMBKEY_SYMBOLS_NUMERIC_V1),
     ESCAThumbKey(64, KB_ES_CA_THUMBKEY),
-    ENThumbKeyMultiIT(65, KB_EN_THUMBKEY_MULTI_IT),
+    ENITThumbKey(65, KB_EN_IT_THUMBKEY),
     ENEOMessageEaseSymbols(66, KB_ENEO_MESSAGEEASE_SYMBOLS),
     UKRUMessageEaseSymbols(67, KB_UK_RU_MESSAGEEASE_SYMBOLS),
     DEMessageEaseSymbols(68, KB_DE_MESSAGEEASE_SYMBOLS),
     CAThumbKey(69, KB_CA_THUMBKEY),
     MATHThumbKey(70, KB_MATH_THUMBKEY),
-    ENThumbKeyMultiEE(71, KB_EN_THUMBKEY_MULTI_EE),
+    ENEEThumbKey(71, KB_EN_EE_THUMBKEY),
     SKThumbKey(72, KB_SK_THUMBKEY),
     ENNOTypeSplit(73, KB_EN_NO_TYPESPLIT),
     ENThumbKeyCompose(74, KB_EN_THUMBKEY_COMPOSE),
+    ENNOThumbKey(75, KB_EN_NO_THUMBKEY),
+    ENTwoHandsSymbols(76, KB_EN_TWO_HANDS_SYMBOLS),
+    ENTwoHandsSymbolsNumbers(77, KB_EN_TWO_HANDS_SYMBOLS_NUMBERS),
+    JATypeSplitHiragana(78, KB_JA_TYPESPLIT_HIRAGANA),
+    JATypeSplitKatakana(79, KB_JA_TYPESPLIT_KATAKANA),
+    EUESThumbKey(80, KB_EU_ES_THUMBKEY),
 }

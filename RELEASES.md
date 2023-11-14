@@ -1,4 +1,74 @@
-# Thumb-Key 2.4.0 (2023-10-16)
+# Thumb-Key 2.6.0 (2023-11-08)
+
+## What's Changed
+
+- Add English-Norwegian Thumb-Key layout by @petlyh in https://github.com/dessalines/thumb-key/pull/547
+- Add twohands symbols layout, fix twohands capitalization issues by @Kommynct in https://github.com/dessalines/thumb-key/pull/549
+- Add spanish translation by @sguinetti in https://github.com/dessalines/thumb-key/pull/552
+- TypeSplit Japanese Hiragana/Katakana by @K0baU in https://github.com/dessalines/thumb-key/pull/541
+- Update ITTypeSplit.kt by @flauta in https://github.com/dessalines/thumb-key/pull/540
+- AutoCapitalize "i\'" ("I'm" and "I'd") by @jeremiah-miller in https://github.com/dessalines/thumb-key/pull/534
+- Add EU ES keyboard by @zgll2022 in https://github.com/dessalines/thumb-key/pull/551
+
+## New Contributors
+
+- @petlyh made their first contribution in https://github.com/dessalines/thumb-key/pull/547
+- @sguinetti made their first contribution in https://github.com/dessalines/thumb-key/pull/552
+- @jeremiah-miller made their first contribution in https://github.com/dessalines/thumb-key/pull/534
+
+**Full Changelog**: https://github.com/dessalines/thumb-key/compare/2.5.2...2.6.0
+
+# Thumb-Key 2.5.2 (2023-11-02)
+
+## What's Changed
+
+- Small issues with DEMessageEaseSymbols and UKRUMessageEaseSymbols layouts by @Crandel in https://github.com/dessalines/thumb-key/pull/535
+- Update Danish Keyboard by @Limfjorden in https://github.com/dessalines/thumb-key/pull/537
+- Redone Lithuanian layout by @MariusTrap in https://github.com/dessalines/thumb-key/pull/542
+- Fixing DB warnings. by @dessalines in https://github.com/dessalines/thumb-key/pull/543
+- Upgrading gradle to 8.4 by @dessalines in https://github.com/dessalines/thumb-key/pull/544
+
+**Full Changelog**: https://github.com/dessalines/thumb-key/compare/2.5.1...2.5.2
+
+# Thumb-Key 2.5.1 (2023-10-24)
+
+## What's Changed
+
+- Fix hungarian layout by @KnockoffFeline in https://github.com/dessalines/thumb-key/pull/525
+- Added emoji key to Type-Split layout. Fixes #432 by @sslater11 in https://github.com/dessalines/thumb-key/pull/524
+- Fixing keyboard names. Fixes #523 by @dessalines in https://github.com/dessalines/thumb-key/pull/526
+- Upgrading deps. by @dessalines in https://github.com/dessalines/thumb-key/pull/532
+
+## New Contributors
+
+- @KnockoffFeline made their first contribution in https://github.com/dessalines/thumb-key/pull/525
+
+**Full Changelog**: https://github.com/dessalines/thumb-key/compare/2.5.0...2.5.1
+
+# Thumb-Key 2.5.0 (2023-10-21)
+
+## What's Changed
+
+- Added FarsiNumeric.kt. by @pxeemo in https://github.com/dessalines/thumb-key/pull/511
+- EN Programmer Wide: Restore wide numeric layout by @Terrance in https://github.com/dessalines/thumb-key/pull/514
+- fixing emoji picker inconsistancies, fixes #496 by @WadeWT in https://github.com/dessalines/thumb-key/pull/515
+- Add ancom theme by @Kommynct in https://github.com/dessalines/thumb-key/pull/509
+- Implement EN layout with composable keys by @mpice-mn in https://github.com/dessalines/thumb-key/pull/513
+- Adding theming guide. Fixes #508 by @dessalines in https://github.com/dessalines/thumb-key/pull/516
+- Running code analyzer for a few fixes. by @dessalines in https://github.com/dessalines/thumb-key/pull/517
+- EN Wide Programmer: Add four-way movement swipes by @Terrance in https://github.com/dessalines/thumb-key/pull/519
+- Backspace swipe right to delete word and Slide gestures improvements by @sslater11 in https://github.com/dessalines/thumb-key/pull/439
+- Updated readme with new features/settings by @sslater11 in https://github.com/dessalines/thumb-key/pull/522
+- Added slide gestures to Type-Split layouts by @sslater11 in https://github.com/dessalines/thumb-key/pull/521
+
+## New Contributors
+
+- @Terrance made their first contribution in https://github.com/dessalines/thumb-key/pull/514
+- @Kommynct made their first contribution in https://github.com/dessalines/thumb-key/pull/509
+
+**Full Changelog**: https://github.com/dessalines/thumb-key/compare/2.4.1...2.5.0
+
+# Thumb-Key 2.4.1 (2023-10-16)
 
 ## What's Changed
 

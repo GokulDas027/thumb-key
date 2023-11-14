@@ -60,18 +60,26 @@ data class KeyC(
 
 sealed class KeyDisplay {
     class TextDisplay(val text: String) : KeyDisplay()
+
     class IconDisplay(val icon: ImageVector) : KeyDisplay()
 }
 
 sealed class KeyAction {
     class CommitText(val text: String) : KeyAction()
+
     class SendEvent(val event: KeyEvent) : KeyAction()
+
     class ReplaceLastText(val text: String, val trimCount: Int = 2) : KeyAction()
+
     class ToggleShiftMode(val enable: Boolean) : KeyAction()
+
     class ToggleNumericMode(val enable: Boolean) : KeyAction()
+
     class ToggleEmojiMode(val enable: Boolean) : KeyAction()
+
     class ComposeLastKey(val text: String) : KeyAction()
-    data object DeleteLastWord : KeyAction()
+    data object DeleteWordBeforeCursor : KeyAction()
+    data object DeleteWordAfterCursor : KeyAction()
     data object GotoSettings : KeyAction()
     data object IMECompleteAction : KeyAction()
     data object ToggleCapsLock : KeyAction()
@@ -87,20 +95,49 @@ sealed class KeyAction {
     data object SwitchIMEVoice : KeyAction()
 }
 
+enum class CursorAccelerationMode(private val stringId: Int) {
+    LINEAR(R.string.slide_cursor_acceleration_linear),
+    QUADRATIC(R.string.slide_cursor_acceleration_quadratic),
+    THRESHOLD(R.string.slide_cursor_acceleration_threshold_acceleration),
+    CONSTANT(R.string.slide_cursor_acceleration_constant),
+    ;
+
+    @Composable
+    fun title(): String {
+        return stringResource(this.stringId)
+    }
+}
+
 enum class KeyboardMode {
-    MAIN, SHIFTED, NUMERIC, EMOJI
+    MAIN,
+    SHIFTED,
+    NUMERIC,
+    EMOJI,
 }
 
 enum class SwipeDirection {
-    LEFT, TOP_LEFT, TOP, TOP_RIGHT, RIGHT, BOTTOM_RIGHT, BOTTOM, BOTTOM_LEFT,
+    LEFT,
+    TOP_LEFT,
+    TOP,
+    TOP_RIGHT,
+    RIGHT,
+    BOTTOM_RIGHT,
+    BOTTOM,
+    BOTTOM_LEFT,
 }
 
 enum class ColorVariant {
-    PRIMARY, SECONDARY, SURFACE, SURFACE_VARIANT, MUTED,
+    PRIMARY,
+    SECONDARY,
+    SURFACE,
+    SURFACE_VARIANT,
+    MUTED,
 }
 
 enum class FontSizeVariant {
-    LARGE, SMALL, SMALLEST
+    LARGE,
+    SMALL,
+    SMALLEST,
 }
 
 enum class ThemeMode(private val stringId: Int) {
@@ -166,10 +203,20 @@ data class Selection(
     var active: Boolean,
 ) {
     constructor() : this (0, 0, false)
+
     fun left() {
         end -= 1
     }
+
+    fun left(index: Int) {
+        end -= index
+    }
+
     fun right() {
         end += 1
+    }
+
+    fun right(index: Int) {
+        end += index
     }
 }
